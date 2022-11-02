@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import './App.css'
+import Index from "./chat";
 
 interface Weather {
   date: string
@@ -21,12 +21,13 @@ function App() {
 
   return (
     <div className="App">
-      {weather.map((w: Weather, i: number) => (
-        <p key={i}>
-          {new Date(w.date).toLocaleTimeString()} {w.temperatureC} {w.summary}{' '}
-          {w.temperatureF}
-        </p>
-      ))}
+        {weather.map((w: Weather, i: number) => (
+                <p key={i}>
+                    {new Date(w.date).toLocaleTimeString()} {w.temperatureC} {w.summary}{' '}
+                    {w.temperatureF}
+                </p>
+                ))}
+        <Index/>
     </div>
   )
 }
