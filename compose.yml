@@ -1,0 +1,9 @@
+version: "3.9"
+services:
+    redis-stack:
+        image: redis/redis-stack
+        ports:
+            - 6379:6379
+            - 8001:8001
+        volumes:
+            - /local-redis-stack.conf:/redis-stack.conf
