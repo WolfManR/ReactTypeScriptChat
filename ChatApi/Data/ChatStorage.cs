@@ -18,25 +18,23 @@ class ChatStorage
     private IRedisCollection<ChatGroup> Groups => _groups ??= _provider.RedisCollection<ChatGroup>();
     private IRedisCollection<ChatMessage> Messages => _messages ??= _provider.RedisCollection<ChatMessage>();
 
-    public Result<string> SignIn(string name)
+    public User SignIn(string name)
     {
         // broken search
         // ReSharper disable once ReplaceWithSingleCallToFirstOrDefault
         var user = Users.Where(x => x.Name == name).FirstOrDefault();
-        return user is not null
-            ? Result<string>.Success(user.Id.ToString())
-            : Result<string>.Failure(Errors.Authentication.NotFound);
-    }
+        if (user is not null)
+		{
+			return user;
+		}
 
-    public Result<string> SignUp(string name)
-    {
-        // broken search
-        // ReSharper disable once ReplaceWithSingleCallToFirstOrDefault
-        var user = Users.Where(x => x.Name == name).FirstOrDefault();
-        if (user is not null) return Result<string>.Failure(Errors.Authentication.Registered);
-
-        var id = Users.Insert(new() { Name = name });
-        return Result<string>.Success(id);
+        user = new()
+        {
+	        Name = name,
+	        Group = "user"
+        };
+		var id = Users.Insert(user);
+		return user;
     }
 
     public UserInfo[] GetUsers()
