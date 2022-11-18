@@ -73,17 +73,17 @@ class ChatStorage
         return groups;
     }
 
-    public MessageInfo[] GetMessages()
+    public IEnumerable<(string user,string message,string chat)> GetMessages()
     {
-        var messages = new List<MessageInfo>();
+        var messages = new List<(string, string, string)>();
         foreach (var x in Messages.ToList())
         {
             var userName = Users.FindById(x.UserId.ToString())?.Name ?? string.Empty;
             var chatGroup = Groups.FindById(x.ChatGroupId.ToString())?.Name ?? string.Empty;
-            messages.Add(new(userName, x.Message, chatGroup));
+            messages.Add((userName, x.Message, chatGroup));
         }
 
-        return messages.ToArray();
+        return messages;
     }
 
     public Result<string> CreateChatGroup(string name, string userId)
