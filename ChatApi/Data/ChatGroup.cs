@@ -1,14 +1,13 @@
-using Redis.OM.Modeling;
+using MongoDB.Bson;
 
 namespace ChatApi.Data;
 
-[Document(StorageType = StorageType.Json)]
 class ChatGroup : Named
 {
     public ChatGroup() { }
     public ChatGroup(string name) => Name = name;
 
-    [Indexed] public List<Ulid> Users { get; init; } = new();
+    public List<ObjectId> Users { get; init; } = new();
 
     public ChatGroup AddUser(User user)
     {

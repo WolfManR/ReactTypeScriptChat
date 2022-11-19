@@ -1,8 +1,9 @@
-using Redis.OM.Modeling;
+using MongoDB.Bson;
 
 namespace ChatApi.Data;
 
 class Entity
 {
-    [RedisIdField] public Ulid Id { get; set; }
+    public ObjectId Id { get; set; }
+    public DateTime Created { get; set; } = DateTime.UtcNow;
 }

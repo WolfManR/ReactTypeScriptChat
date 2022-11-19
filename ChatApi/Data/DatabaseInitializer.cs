@@ -1,32 +1,40 @@
-using Redis.OM;
+using MongoDB.Driver;
 
 namespace ChatApi.Data;
 
 class DatabaseInitializer
 {
-    private readonly RedisConnectionProvider _provider;
+	private readonly IMongoClient _mongoClient;
 
-    private static readonly Type[] Documents =
-    {
-        typeof(User),
-        typeof(ChatGroup),
-        typeof(ChatMessage)
-    };
+	public DatabaseInitializer(IMongoClient mongoClient)
+	{
+		_mongoClient = mongoClient;
+	}
 
-    public DatabaseInitializer(RedisConnectionProvider provider)
+	public async ValueTask Initialize()
     {
-        _provider = provider;
-    }
-
-    public async ValueTask Initialize()
-    {
-        foreach (var document in Documents)
-            await _provider.Connection.CreateIndexAsync(document);
+	    var usersCollection = _mongoClient.GetDatabase("Chat").GetCollection<User>("users");
+	    if (await usersCollection.CountDocumentsAsync(x => true) == 0)
+	    {
+		    await usersCollection.InsertOneAsync(new() { Group = "Admin", Name = "Admin" });
+	    }
     }
 
     public async ValueTask Reinitialize()
     {
-        var indexesDrop = Documents.Select(x => _provider.Connection.DropIndexAndAssociatedRecords(x)).ToList();
-        if (indexesDrop.All(x => x)) await Initialize();
+	    var database = _mongoClient.GetDatabase("Chat");
+
+		var usersCollection = database.GetCollection<User>("users");
+	    await usersCollection.DeleteManyAsync(x => true).ConfigureAwait(false);
+	    if (await usersCollection.CountDocumentsAsync(x => true) == 0)
+	    {
+		    await usersCollection.InsertOneAsync(new() { Group = "Admin", Name = "Admin" });
+	    }
+
+	    var chatsCollection = database.GetCollection<ChatGroup>("chats");
+	    await chatsCollection.DeleteManyAsync(x => true);
+
+	    var messagesCollection = database.GetCollection<ChatMessage>("messages");
+	    await messagesCollection.DeleteManyAsync(x => true);
     }
 }
