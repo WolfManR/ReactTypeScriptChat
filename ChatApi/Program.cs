@@ -4,7 +4,7 @@ using ChatApi.Data;
 
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
-
+using MongoDB.Driver;
 using Redis.OM;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,6 +26,7 @@ builder.Services.AddAuthorization(o =>
 });
 
 builder.Services
+	.AddScoped<IMongoClient, MongoClient>(p => new(p.GetRequiredService<IConfiguration>().GetConnectionString("Mongo")))
 	.AddSingleton(new RedisConnectionProvider(builder.Configuration.GetConnectionString("Redis")))
 	.AddScoped<DatabaseInitializer>()
 	.AddScoped<ChatStorage>();
