@@ -11,7 +11,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 const string authenticationSchema = "Cookie";
 const string userGroup = "user";
-const string policy = "user-policy";
+const string adminGroup = "Admin";
+const string userPolicy = "user-policy";
+const string adminPolicy = "admin-policy";
+const string fullEntryPolicy = "all-can-access-policy";
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -22,7 +25,9 @@ builder.Services.AddAuthentication(authenticationSchema).AddCookie(authenticatio
 
 builder.Services.AddAuthorization(o =>
 {
-	o.AddPolicy(policy, pb => pb.RequireAuthenticatedUser().AddAuthenticationSchemes(authenticationSchema).RequireClaim("group", userGroup));
+	o.AddPolicy(userPolicy, pb => pb.RequireAuthenticatedUser().AddAuthenticationSchemes(authenticationSchema).RequireClaim("group", userGroup));
+	o.AddPolicy(adminPolicy, pb => pb.RequireAuthenticatedUser().AddAuthenticationSchemes(authenticationSchema).RequireClaim("group", adminGroup));
+	o.AddPolicy(fullEntryPolicy, pb => pb.RequireAuthenticatedUser().AddAuthenticationSchemes(authenticationSchema).RequireClaim("group", adminGroup, userGroup));
 });
 
 builder.Services
@@ -49,13 +54,16 @@ app.UseAuthorization();
 
 app.MapGet("debug/database/initialize", async ([FromServices] DatabaseInitializer initializer) => await initializer.Initialize()).WithTags("Debug");
 app.MapGet("debug/database/reinitialize", async ([FromServices] DatabaseInitializer initializer) => await initializer.Reinitialize()).WithTags("Debug");
-app.MapGet("debug/accounts", ([FromServices] ChatStorage storage) => Results.Ok(storage.GetUsers())).WithTags("Debug");
+app.MapGet("debug/accounts", async ([FromServices] ChatStorage storage) => Results.Ok(await storage.GetUsers())).WithTags("Debug");
 app.MapGet("debug/groups", ([FromServices] ChatStorage storage) => Results.Ok(storage.GetChats())).WithTags("Debug");
-app.MapGet("debug/messages", ([FromServices] ChatStorage storage) => Results.Ok(storage.GetMessages())).WithTags("Debug");
+app.MapGet("debug/messages", async ([FromServices] ChatStorage storage) => Results.Ok(await storage.GetMessages())).WithTags("Debug");
 
 app.MapPost("auth/signin", async (string nick, HttpContext ctx, [FromServices] ChatStorage storage) =>
 	{
-		var user = storage.SignIn(nick);
+		var user = await storage.SignIn(nick);
+
+		ctx.Response.Cookies.Delete(".AspNetCore.Cookie");
+
 		List<Claim> claims = new()
 		{
 			new("usr", user.Id.ToString()),
@@ -75,7 +83,7 @@ app.MapPost("groups/create", ([FromQuery] string name, HttpContext ctx, [FromSer
 		return Results.Ok(storage.CreateChatGroup(name, userId));
 	})
 	.WithTags("ChatGroups")
-	.RequireAuthorization(policy);
+	.RequireAuthorization(userPolicy);
 
 app.MapPost("groups/join", ([FromQuery] string chatGroupId, HttpContext ctx, [FromServices] ChatStorage storage) =>
 	{
@@ -83,7 +91,7 @@ app.MapPost("groups/join", ([FromQuery] string chatGroupId, HttpContext ctx, [Fr
 		return Results.Ok(storage.JoinGroup(userId, chatGroupId));
 	})
 	.WithTags("ChatGroups")
-	.RequireAuthorization(policy);
+	.RequireAuthorization(userPolicy);
 
 app.MapPost("messages/add", ([FromQuery] string chatGroupId, [FromQuery] string message, HttpContext ctx, [FromServices] ChatStorage storage) =>
 	{
@@ -91,13 +99,13 @@ app.MapPost("messages/add", ([FromQuery] string chatGroupId, [FromQuery] string 
 		return Results.Ok(storage.AddMessage(userId, message, chatGroupId));
 	})
 	.WithTags("Messages")
-	.RequireAuthorization(policy);
+	.RequireAuthorization(userPolicy);
 
 app.MapGet("messages", ([FromQuery] string chatGroupId, [FromServices] ChatStorage storage) =>
 	{
 		return Results.Ok(storage.GetMessages(chatGroupId));
 	})
 	.WithTags("Messages")
-	.RequireAuthorization(policy);
+	.RequireAuthorization(userPolicy);
 
 app.Run();
