@@ -9,6 +9,7 @@ using Redis.OM;
 
 var builder = WebApplication.CreateBuilder(args);
 
+const string reactCORS = "react-app";
 const string authenticationSchema = "Cookie";
 const string userGroup = "user";
 const string adminGroup = "Admin";
@@ -36,7 +37,7 @@ builder.Services
 	.AddScoped<DatabaseInitializer>()
 	.AddScoped<ChatStorage>();
 
-builder.Services.AddCors(options => options.AddPolicy("react-app", policyBuilder => policyBuilder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
+builder.Services.AddCors(options => options.AddPolicy(reactCORS, policyBuilder => policyBuilder.WithOrigins("http://localhost:5173").WithMethods("GET", "POST").AllowAnyHeader().AllowCredentials()));
 
 var app = builder.Build();
 
@@ -47,7 +48,9 @@ if (app.Environment.IsDevelopment())
 	app.UseSwaggerUI();
 }
 
-app.UseCors("react-app");
+app.UseHttpLogging();
+app.UseCors(reactCORS);
+
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -94,6 +97,16 @@ app.MapPost("auth/who-am-i", async (HttpContext ctx, [FromServices] ChatStorage 
 	})
 	.WithTags("Auth")
 	.RequireAuthorization(fullEntryPolicy);
+
+app.MapGet("auth/signed-in", (HttpContext ctx) =>
+	{
+		var userId = ctx.User.FindFirstValue("usr");
+		if (userId is null) return Results.Unauthorized();
+		return Results.Ok();
+	})
+	.WithTags("Auth")
+	.AllowAnonymous()
+	.RequireCors(reactCORS);
 
 app.MapPost("groups/create", ([FromQuery] string name, HttpContext ctx, [FromServices] ChatStorage storage) =>
 	{
