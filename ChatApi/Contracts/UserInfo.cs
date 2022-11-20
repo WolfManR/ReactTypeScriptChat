@@ -1,3 +1,3 @@
 namespace ChatApi.Contracts;
 
-public record UserInfo(string Name, string Id, ChatInfo[] Chats);
+public record UserInfo(string Name);

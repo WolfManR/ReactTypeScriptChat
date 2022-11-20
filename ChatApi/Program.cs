@@ -77,6 +77,24 @@ app.MapPost("auth/signin", async (string nick, HttpContext ctx, [FromServices] C
 	.WithTags("Auth")
 	.AllowAnonymous();
 
+app.MapPost("auth/what-is-my-group", (HttpContext ctx) =>
+	{
+		var group = ctx.User.FindFirstValue("group");
+		return Results.Ok(group);
+	})
+	.WithTags("Auth")
+	.RequireAuthorization(fullEntryPolicy);
+
+app.MapPost("auth/who-am-i", async (HttpContext ctx, [FromServices] ChatStorage storage) =>
+	{
+		var userId = ctx.User.FindFirstValue("usr");
+		var result = await storage.GetUser(userId);
+		if (result.IsFailure) return Results.NotFound();
+		return Results.Ok(result.Data!.Name);
+	})
+	.WithTags("Auth")
+	.RequireAuthorization(fullEntryPolicy);
+
 app.MapPost("groups/create", ([FromQuery] string name, HttpContext ctx, [FromServices] ChatStorage storage) =>
 	{
 		var userId = ctx.User.FindFirstValue("usr");
@@ -89,6 +107,14 @@ app.MapPost("groups/join", ([FromQuery] string chatGroupId, HttpContext ctx, [Fr
 	{
 		var userId = ctx.User.FindFirstValue("usr");
 		return Results.Ok(storage.JoinGroup(userId, chatGroupId));
+	})
+	.WithTags("ChatGroups")
+	.RequireAuthorization(userPolicy);
+
+app.MapGet("groups", (HttpContext ctx, [FromServices] ChatStorage storage) =>
+	{
+		var userId = ctx.User.FindFirstValue("usr");
+		return Results.Ok(storage.GetUserChats(userId));
 	})
 	.WithTags("ChatGroups")
 	.RequireAuthorization(userPolicy);

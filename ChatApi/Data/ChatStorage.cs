@@ -156,4 +156,31 @@ class ChatStorage
 
 		return Result<MessageData[]>.Success(temp.ToArray());
 	}
+
+	public IEnumerable<ChatInfo> GetUserChats(string userId)
+	{
+		var actualUserId = ObjectId.Parse(userId);
+		var chatInfoProjection = Builders<ChatGroup>.Projection.Expression<ChatInfo>(x => new(x.Name, x.Id.ToString(), GetChatLastMessage(x.Id)));
+
+		var groups = Groups.Find(x => x.Users.Contains(actualUserId))
+			.Project(chatInfoProjection)
+			.ToList();
+		return groups;
+	}
+
+	public async Task<Result<UserInfo>> GetUser(string userId)
+	{
+		var actualUserId = ObjectId.Parse(userId);
+		var user = await Users.Find(x => x.Id == actualUserId).FirstOrDefaultAsync();
+		if (user is null) return Result<UserInfo>.Failure(Errors.Accounts.UserNotFound);
+
+		var chatInfoProjection = Builders<ChatGroup>.Projection.Expression<ChatInfo>(x => new(x.Name, x.Id.ToString(), GetChatLastMessage(x.Id)));
+
+		var groups = Groups.Find(x => x.Users.Contains(user.Id))
+			.Project(chatInfoProjection)
+			.ToList();
+		UserInfo userInfo = new(user.Name);
+
+		return Result<UserInfo>.Success(userInfo);
+	}
 }
