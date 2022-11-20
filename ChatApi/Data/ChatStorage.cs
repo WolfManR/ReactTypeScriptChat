@@ -43,19 +43,19 @@ class ChatStorage
 		return user;
 	}
 
-	public async Task<UserInfo[]> GetUsers()
+	public async Task<IEnumerable> GetUsers()
 	{
 		var cursor = await Users.FindAsync(x => true);
-		List<UserInfo> usersInfo = new();
+		List<object> usersInfo = new();
 
-		var chatInfoProjection = Builders<ChatGroup>.Projection.Expression<ChatInfo>(x => new ChatInfo(x.Name, x.Id.ToString(), GetChatLastMessage(x.Id)));
+		var chatInfoProjection = Builders<ChatGroup>.Projection.Expression<ChatInfo>(x => new(x.Name, x.Id.ToString(), GetChatLastMessage(x.Id)));
 
 		foreach (var user in cursor.ToEnumerable())
 		{
 			var groups = Groups.Find(x => x.Users.Contains(user.Id))
 				.Project(chatInfoProjection)
 				.ToList();
-			usersInfo.Add(new(user.Name, user.Id.ToString(), groups.ToArray()));
+			usersInfo.Add(new { name = user.Name, id = user.Id.ToString(), chats = groups.ToArray() });
 		}
 
 		return usersInfo.ToArray();
