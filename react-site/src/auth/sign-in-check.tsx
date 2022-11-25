@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { isSigned } from '../api/auth-api'
 import SignIn from './sign-in'
 
 type Props = {
@@ -11,37 +12,14 @@ const SignInCheck = ({ children }: Props) => {
 
   useEffect(() => {
     if (isAuthenticated) return
-
     const controller = new AbortController()
-    fetch('http://localhost:5271/auth/signed-in', {
-      mode: 'cors',
-      credentials: 'include',
-      signal: controller.signal,
-    })
-      .then((r) => {
-        if (r.status === 401) {
-          setAuthenticationState(false)
-          return r
-        }
-        if (r.status >= 200 && r.status <= 300) {
-          setAuthenticationState(true)
-          return r
-        }
-
-        return false
-      })
-      .catch((e) => setAuthenticationState(false))
-
+    isSigned(controller).then(r=> setAuthenticationState(r))
     return () => {
       controller.abort()
     }
   }, [])
-
-  if (!isAuthenticated) {
-    return <SignIn />
-  }
-
-  return <div>{children}</div>
+  
+  return (isAuthenticated ? <div>{children}</div> : <SignIn />)
 }
 
 export default SignInCheck

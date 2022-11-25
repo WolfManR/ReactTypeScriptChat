@@ -1,25 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import React, { useReducer } from 'react'
-
-type chat = {
-  id: string
-  name: string
-  lastMessage: string
-}
+import { chat, getChats } from '../api/chats-api'
 
 type Props = {
   setChatId: (value: string) => void
 }
 
-const ChatGroups = ({setChatId} : Props) => {
+const ChatGroups = ({ setChatId }: Props) => {
   const { isLoading, data } = useQuery({
     queryKey: ['chats'],
-    queryFn: () =>
-      fetch(`http://localhost:5271/groups`, {
-        method: 'GET',
-        credentials: 'include',
-        mode: 'cors',
-      }).then((response) => response.json() as Promise<Array<chat>>),
+    queryFn: getChats,
   })
 
   const openChat = (chatInfo: chat) => {

@@ -1,14 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import React, { useRef } from 'react'
+import { signIn } from '../api/auth-api'
 
 const SignIn = () => {
   const mutation = useMutation({
-    mutationFn: (nick: string) =>
-      fetch(`http://localhost:5271/auth/signin?nick=${nick}`, {
-        method: 'POST',
-        credentials: 'include',
-        mode: 'cors',
-      }),
+    mutationFn: signIn,
   })
 
   const inputRef = useRef<HTMLInputElement>(null)
