@@ -1,7 +1,7 @@
 using System.Security.Claims;
 
 using ChatApi.Data;
-
+using ChatApi.Data.Base;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
@@ -34,8 +34,10 @@ builder.Services.AddAuthorization(o =>
 builder.Services
 	.AddScoped<IMongoClient, MongoClient>(p => new(p.GetRequiredService<IConfiguration>().GetConnectionString("Mongo")))
 	.AddSingleton(new RedisConnectionProvider(builder.Configuration.GetConnectionString("Redis")))
-	.AddScoped<DatabaseInitializer>()
-	.AddScoped<ChatStorage>();
+	.AddScoped<MongoDatabaseContext>()
+	.AddScoped<IDebugStorage, DebugStorage>()
+	.AddScoped<IChatsStorage, ChatsStorage>()
+	.AddScoped<IAccountsStorage, AccountsStorage>();
 
 builder.Services.AddCors(options => options.AddPolicy(reactCORS, policyBuilder => policyBuilder.WithOrigins("http://localhost:5173").WithMethods("GET", "POST").AllowAnyHeader().AllowCredentials()));
 
@@ -55,15 +57,19 @@ app.UseCors(reactCORS);
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("debug/database/initialize", async ([FromServices] DatabaseInitializer initializer) => await initializer.Initialize()).WithTags("Debug");
-app.MapGet("debug/database/reinitialize", async ([FromServices] DatabaseInitializer initializer) => await initializer.Reinitialize()).WithTags("Debug");
-app.MapGet("debug/accounts", async ([FromServices] ChatStorage storage) => Results.Ok(await storage.GetUsers())).WithTags("Debug");
-app.MapGet("debug/groups", ([FromServices] ChatStorage storage) => Results.Ok(storage.GetChats())).WithTags("Debug");
-app.MapGet("debug/messages", async ([FromServices] ChatStorage storage) => Results.Ok(await storage.GetMessages())).WithTags("Debug");
+app.MapGet("debug/database/initialize", async ([FromServices] IDebugStorage debugStorage) => await debugStorage.SeedDatabase()).WithTags("Debug");
+app.MapGet("debug/database/reinitialize", async ([FromServices] IDebugStorage debugStorage) =>
+{
+	await debugStorage.ClearDatabase();
+	await debugStorage.SeedDatabase();
+}).WithTags("Debug");
+app.MapGet("debug/accounts", async ([FromServices] IDebugStorage storage) => Results.Ok(await storage.GetUsers())).WithTags("Debug");
+app.MapGet("debug/groups", ([FromServices] IDebugStorage storage) => Results.Ok(storage.GetChats())).WithTags("Debug");
+app.MapGet("debug/messages", async ([FromServices] IDebugStorage storage) => Results.Ok(await storage.GetMessages())).WithTags("Debug");
 
-app.MapPost("auth/signin", async (string nick, HttpContext ctx, [FromServices] ChatStorage storage) =>
+app.MapPost("auth/signin", async (string nick, HttpContext ctx, [FromServices] IAccountsStorage storage) =>
 	{
-		var user = await storage.SignIn(nick);
+		var user = await storage.GetOrAddUser(nick);
 
 		ctx.Response.Cookies.Delete(".AspNetCore.Cookie");
 
@@ -88,7 +94,7 @@ app.MapPost("auth/what-is-my-group", (HttpContext ctx) =>
 	.WithTags("Auth")
 	.RequireAuthorization(fullEntryPolicy);
 
-app.MapPost("auth/who-am-i", async (HttpContext ctx, [FromServices] ChatStorage storage) =>
+app.MapPost("auth/who-am-i", async (HttpContext ctx, [FromServices] IAccountsStorage storage) =>
 	{
 		var userId = ctx.User.FindFirstValue("usr");
 		var result = await storage.GetUser(userId);
@@ -108,7 +114,7 @@ app.MapGet("auth/signed-in", (HttpContext ctx) =>
 	.AllowAnonymous()
 	.RequireCors(reactCORS);
 
-app.MapPost("groups/create", ([FromQuery] string name, HttpContext ctx, [FromServices] ChatStorage storage) =>
+app.MapPost("groups/create", ([FromQuery] string name, HttpContext ctx, [FromServices] IChatsStorage storage) =>
 	{
 		var userId = ctx.User.FindFirstValue("usr");
 		return Results.Ok(storage.CreateChatGroup(name, userId));
@@ -116,7 +122,7 @@ app.MapPost("groups/create", ([FromQuery] string name, HttpContext ctx, [FromSer
 	.WithTags("ChatGroups")
 	.RequireAuthorization(userPolicy);
 
-app.MapPost("groups/join", ([FromQuery] string chatGroupId, HttpContext ctx, [FromServices] ChatStorage storage) =>
+app.MapPost("groups/join", ([FromQuery] string chatGroupId, HttpContext ctx, [FromServices] IChatsStorage storage) =>
 	{
 		var userId = ctx.User.FindFirstValue("usr");
 		return Results.Ok(storage.JoinGroup(userId, chatGroupId));
@@ -124,7 +130,7 @@ app.MapPost("groups/join", ([FromQuery] string chatGroupId, HttpContext ctx, [Fr
 	.WithTags("ChatGroups")
 	.RequireAuthorization(userPolicy);
 
-app.MapGet("groups", (HttpContext ctx, [FromServices] ChatStorage storage) =>
+app.MapGet("groups", (HttpContext ctx, [FromServices] IAccountsStorage storage) =>
 	{
 		var userId = ctx.User.FindFirstValue("usr");
 		return Results.Ok(storage.GetUserChats(userId));
@@ -132,7 +138,7 @@ app.MapGet("groups", (HttpContext ctx, [FromServices] ChatStorage storage) =>
 	.WithTags("ChatGroups")
 	.RequireAuthorization(userPolicy);
 
-app.MapPost("messages/add", ([FromQuery] string chatGroupId, [FromQuery] string message, HttpContext ctx, [FromServices] ChatStorage storage) =>
+app.MapPost("messages/add", ([FromQuery] string chatGroupId, [FromQuery] string message, HttpContext ctx, [FromServices] IChatsStorage storage) =>
 	{
 		var userId = ctx.User.FindFirstValue("usr");
 		return Results.Ok(storage.AddMessage(userId, message, chatGroupId));
@@ -140,7 +146,7 @@ app.MapPost("messages/add", ([FromQuery] string chatGroupId, [FromQuery] string 
 	.WithTags("Messages")
 	.RequireAuthorization(userPolicy);
 
-app.MapGet("messages", ([FromQuery] string chatGroupId, [FromServices] ChatStorage storage) =>
+app.MapGet("messages", ([FromQuery] string chatGroupId, [FromServices] IChatsStorage storage) =>
 	{
 		return Results.Ok(storage.GetMessages(chatGroupId));
 	})

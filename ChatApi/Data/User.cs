@@ -1,6 +1,8 @@
+using ChatApi.Data.Base;
+
 namespace ChatApi.Data;
 
-class User : Named
+public class User : Named
 {
 	public string Group { get; set; } = null!;
 }

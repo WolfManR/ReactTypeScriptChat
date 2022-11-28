@@ -1,8 +1,9 @@
+using ChatApi.Data.Base;
 using MongoDB.Bson;
 
 namespace ChatApi.Data;
 
-class ChatGroup : Named
+public class ChatGroup : Named
 {
     public ChatGroup() { }
     public ChatGroup(string name) => Name = name;

@@ -1,8 +1,8 @@
 using MongoDB.Bson;
 
-namespace ChatApi.Data;
+namespace ChatApi.Data.Base;
 
-class Entity
+public class Entity
 {
     public ObjectId Id { get; set; }
     public DateTime Created { get; set; } = DateTime.UtcNow;
