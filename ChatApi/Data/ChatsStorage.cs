@@ -15,7 +15,11 @@ public class ChatsStorage : IChatsStorage
 
 	public Result<string> CreateChatGroup(string name, string userId)
 	{
-		var actualUserId = ObjectId.Parse(userId);
+		if (ObjectId.TryParse(userId, out var actualUserId))
+		{
+			return Result<string>.Failure(Errors.Accounts.NotValidUserId);
+		}
+
 		var user = _context.Users.Find(x => x.Id == actualUserId).FirstOrDefault();
 		if (user is null) return Result<string>.Failure(Errors.Accounts.UserNotFound);
 
@@ -27,8 +31,14 @@ public class ChatsStorage : IChatsStorage
 
 	public Result JoinGroup(string userId, string chatGroupId)
 	{
-		var actualUserId = ObjectId.Parse(userId);
-		var actualChatId = ObjectId.Parse(chatGroupId);
+		if (ObjectId.TryParse(userId, out var actualUserId))
+		{
+			return Result.Failure(Errors.Accounts.NotValidUserId);
+		}
+		if (ObjectId.TryParse(chatGroupId, out var actualChatId))
+		{
+			return Result.Failure(Errors.ChatGroups.NotValidChatId);
+		}
 
 		var user = _context.Users.Find(x => x.Id == actualUserId).FirstOrDefault();
 		if (user is null) return Result.Failure(Errors.Accounts.UserNotFound);
@@ -40,8 +50,14 @@ public class ChatsStorage : IChatsStorage
 
 	public Result<string> AddMessage(string userId, string message, string chatGroupId)
 	{
-		var actualUserId = ObjectId.Parse(userId);
-		var actualChatId = ObjectId.Parse(chatGroupId);
+		if (ObjectId.TryParse(userId, out var actualUserId))
+		{
+			return Result<string>.Failure(Errors.Accounts.NotValidUserId);
+		}
+		if (ObjectId.TryParse(chatGroupId, out var actualChatId))
+		{
+			return Result<string>.Failure(Errors.ChatGroups.NotValidChatId);
+		}
 
 		var user = _context.Users.Find(x => x.Id == actualUserId).FirstOrDefault();
 		if (user is null) return Result<string>.Failure(Errors.Accounts.UserNotFound);
@@ -57,25 +73,29 @@ public class ChatsStorage : IChatsStorage
 
 	public Result<MessageData[]> GetMessages(string chatGroupId)
 	{
-		var actualChatId = ObjectId.Parse(chatGroupId);
+		if (ObjectId.TryParse(chatGroupId, out var actualChatId))
+		{
+			return Result<MessageData[]>.Failure(Errors.ChatGroups.NotValidChatId);
+		}
 
 		var group = _context.Groups.Find(x => x.Id == actualChatId).FirstOrDefault();
 		if (group is null) return Result<MessageData[]>.Failure(Errors.ChatGroups.GroupNotFound);
 
 		var messages = _context.Messages.Find(x => x.ChatGroupId == group.Id).ToList();
-		var temp = new List<MessageData>();
+		var temp = new MessageData[messages.Count];
 		Dictionary<ObjectId, string> userNamesCache = new();
-		foreach (var message in messages)
+		for (var i = 0; i < messages.Count; i++)
 		{
+			var message = messages[i];
 			if (!userNamesCache.TryGetValue(message.UserId, out var userName))
 			{
 				userName = _context.Users.Find(c => c.Id == message.UserId).FirstOrDefault()?.Name ?? string.Empty;
 				userNamesCache.Add(message.UserId, userName);
 			}
 
-			temp.Add(new(userName, message.Message));
+			temp[i] = new(userName, message.Message);
 		}
 
-		return Result<MessageData[]>.Success(temp.ToArray());
+		return Result<MessageData[]>.Success(temp);
 	}
 }

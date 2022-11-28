@@ -19,5 +19,5 @@ public interface IAccountsStorage
 	/// <summary> List chat groups which user joined </summary>
 	/// <param name="userId"> User information id </param>
 	/// <returns> List of chats </returns>
-	IEnumerable<ChatInfo> GetUserChats(string userId);
+	Result<IEnumerable<ChatInfo>> GetUserChats(string userId);
 }

@@ -29,30 +29,30 @@ public class AccountsStorage : IAccountsStorage
 		return user;
 	}
 
-	public IEnumerable<ChatInfo> GetUserChats(string userId)
+	public Result<IEnumerable<ChatInfo>> GetUserChats(string userId)
 	{
-		var actualUserId = ObjectId.Parse(userId);
+		if (ObjectId.TryParse(userId, out var actualUserId))
+		{
+			return Result<IEnumerable<ChatInfo>>.Failure(Errors.Accounts.NotValidUserId);
+		}
+
 		var chatInfoProjection = Builders<ChatGroup>.Projection.Expression<ChatInfo>(x => new(x.Name, x.Id.ToString(), GetChatLastMessage(x.Id)));
 
-		var groups = _context.Groups.Find(x => x.Users.Contains(actualUserId))
-			.Project(chatInfoProjection)
-			.ToList();
-		return groups;
+		var groups = _context.Groups.Find(x => x.Users.Contains(actualUserId)).Project(chatInfoProjection).ToList();
+		return Result<IEnumerable<ChatInfo>>.Success(groups);
 	}
 
 	public async Task<Result<UserInfo>> GetUser(string userId)
 	{
-		var actualUserId = ObjectId.Parse(userId);
+		if (ObjectId.TryParse(userId, out var actualUserId))
+		{
+			return Result<UserInfo>.Failure(Errors.Accounts.NotValidUserId);
+		}
+
 		var user = await _context.Users.Find(x => x.Id == actualUserId).FirstOrDefaultAsync();
 		if (user is null) return Result<UserInfo>.Failure(Errors.Accounts.UserNotFound);
 
-		var chatInfoProjection = Builders<ChatGroup>.Projection.Expression<ChatInfo>(x => new(x.Name, x.Id.ToString(), GetChatLastMessage(x.Id)));
-
-		var groups = _context.Groups.Find(x => x.Users.Contains(user.Id))
-			.Project(chatInfoProjection)
-			.ToList();
 		UserInfo userInfo = new(user.Name);
-
 		return Result<UserInfo>.Success(userInfo);
 	}
 
